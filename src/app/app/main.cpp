@@ -26,7 +26,23 @@ int main(int argc, char *argv[]) {
   int status_connect =
       ftp::connect_to_server(server_socket, server_ip, server_port);
 
-  if (status_connect == 0) {
-    ftp::print_server_response(server_socket);
-  }
+  std::string username;
+  std::string password;
+  std::cout << "Введите имя пользователя > ";
+  std::cin >> username;
+  ftp::login(server_socket, username);
+  std::cout << "Введите пароль > ";
+  std::cin >> password;
+  ftp::password(server_socket, password);
+
+  // while (status_connect == 0) {
+  //   std::string command;
+  //   std::cout << "Список возможных комманд:\n"
+  //             << "LIST - просмотр содержимого каталога\n"
+  //             << "RETR - передать файл с сервера на клиент\n"
+  //             << "STOR - передать файл с клиента на сервер\n"
+  //             << "QUIT - Выход и разрыв соединения\n";
+  //   std::cout << "> ";
+  //   std::cin >> command;
+  // }
 }
