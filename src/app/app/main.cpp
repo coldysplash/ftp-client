@@ -26,23 +26,25 @@ int main(int argc, char *argv[]) {
   int status_connect =
       ftp::connect_to_server(server_socket, server_ip, server_port);
 
-  std::string username;
-  std::string password;
-  std::cout << "Введите имя пользователя > ";
-  std::cin >> username;
-  ftp::login(server_socket, username);
-  std::cout << "Введите пароль > ";
-  std::cin >> password;
-  ftp::password(server_socket, password);
+  ftp::login(server_socket);
+  ftp::password(server_socket);
 
-  // while (status_connect == 0) {
-  //   std::string command;
-  //   std::cout << "Список возможных комманд:\n"
-  //             << "LIST - просмотр содержимого каталога\n"
-  //             << "RETR - передать файл с сервера на клиент\n"
-  //             << "STOR - передать файл с клиента на сервер\n"
-  //             << "QUIT - Выход и разрыв соединения\n";
-  //   std::cout << "> ";
-  //   std::cin >> command;
-  // }
+  while (status_connect == 0) {
+    std::string command;
+    // std::cout << "Список возможных комманд:\n"
+    //           << "PORT - войти в активный режим\n"
+    //           << "PASV - войти в пассивный режим\n"
+    //           << "LIST - просмотр содержимого каталога\n"
+    //           << "RETR - передать файл с сервера на клиент\n"
+    //           << "STOR - передать файл с клиента на сервер\n"
+    //           << "QUIT - Выход и разрыв соединения\n";
+    std::cout << "> ";
+    std::cin >> command;
+
+    if (command == "QUIT") {
+      ftp::quit(server_socket);
+      status_connect = -1;
+    }
+  }
+  close(server_socket);
 }
