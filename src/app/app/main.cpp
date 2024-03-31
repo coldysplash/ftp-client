@@ -26,22 +26,25 @@ int main(int argc, char *argv[]) {
   int status_connect =
       ftp::connect_to_server(server_socket, server_ip, server_port);
 
+  ftp::print_server_response(server_socket);
   ftp::login(server_socket);
   ftp::password(server_socket);
 
+  int data_socket = 0;
   while (status_connect == 0) {
     std::string command;
-    // std::cout << "Список возможных комманд:\n"
-    //           << "PORT - войти в активный режим\n"
-    //           << "PASV - войти в пассивный режим\n"
-    //           << "LIST - просмотр содержимого каталога\n"
-    //           << "RETR - передать файл с сервера на клиент\n"
-    //           << "STOR - передать файл с клиента на сервер\n"
-    //           << "QUIT - Выход и разрыв соединения\n";
     std::cout << "> ";
     std::cin >> command;
 
-    if (command == "QUIT") {
+    if (command == "PASV") {
+      data_socket = ftp::passive_mode(server_socket);
+    } else if (command == "LIST") {
+      ftp::list(server_socket, data_socket);
+    } else if (command == "PWD") {
+      ftp::pwd(server_socket);
+    } else if (command == "HELP") {
+      ftp::help();
+    } else if (command == "QUIT") {
       ftp::quit(server_socket);
       status_connect = -1;
     }
