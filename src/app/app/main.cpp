@@ -1,11 +1,6 @@
 #include <ftpclient/client.hpp>
 
-#include <arpa/inet.h>
-#include <cstdlib>
-#include <cstring>
 #include <iostream>
-#include <sys/socket.h>
-#include <unistd.h>
 
 int main(int argc, char *argv[]) {
 
@@ -17,37 +12,27 @@ int main(int argc, char *argv[]) {
   const char *server_ip = argv[1];
   int server_port = atoi(argv[2]);
 
-  int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-  if (server_socket < 0) {
-    std::cerr << "Error creating socket!" << std::endl;
-    return -1;
-  }
+  ftp::Client client(server_ip, server_port);
 
-  int status_connect =
-      ftp::connect_to_server(server_socket, server_ip, server_port);
+  client.login();
+  client.password();
 
-  ftp::print_server_response(server_socket);
-  ftp::login(server_socket);
-  ftp::password(server_socket);
-
-  int data_socket = 0;
-  while (status_connect == 0) {
+  while (1) {
     std::string command;
     std::cout << "> ";
     std::cin >> command;
 
     if (command == "PASV") {
-      data_socket = ftp::passive_mode(server_socket);
+      client.passive_mode();
     } else if (command == "LIST") {
-      ftp::list(server_socket, data_socket);
+      client.list();
     } else if (command == "PWD") {
-      ftp::pwd(server_socket);
+      client.pwd();
     } else if (command == "HELP") {
-      ftp::help();
+      client.help();
     } else if (command == "QUIT") {
-      ftp::quit(server_socket);
-      status_connect = -1;
+      client.quit();
+      break;
     }
   }
-  close(server_socket);
 }

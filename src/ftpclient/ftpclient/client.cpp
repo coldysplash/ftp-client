@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -32,90 +31,95 @@ void parse_addr_port(const char *pars_str, std::string &ip, int &port) {
 
 namespace ftp {
 
-void print_server_response(int comm_socket) {
-  char buff[BUFFER_SIZE];
-  memset(buff, 0, sizeof(buff));
-  recv(comm_socket, &buff, BUFFER_SIZE, 0);
-  std::cout << buff;
+Client::Client(const char *server_ip, int port) {
+  control_socket_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (control_socket_ < 0) {
+    throw("Error creating socket!");
+  }
+  connect_to_server(control_socket_, server_ip, port);
+  print_server_response(control_socket_);
 }
 
-int connect_to_server(int comm_socket, const char *server_ip, int port) {
+void Client::connect_to_server(int _socket, const char *server_ip, int port) {
   sockaddr_in address{};
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = inet_addr(server_ip);
   address.sin_port = htons(port);
 
-  int status_connect = connect(
-      comm_socket, reinterpret_cast<sockaddr *>(&address), sizeof(address));
-
-  if (status_connect < 0) {
-    std::cerr << "Error connecting to server!" << std::endl;
-    close(comm_socket);
-    return -1;
+  if (connect(
+          _socket, reinterpret_cast<sockaddr *>(&address), sizeof(address)) <
+      0) {
+    throw("Error connecting to server!");
+    close(_socket);
+  } else {
+    std::cout << "Connecting complete!\n";
   }
-  return status_connect;
 }
 
-void login(int comm_socket) {
+void Client::login() {
   std::string username;
   std::cout << "Введите имя пользователя > ";
   std::cin >> username;
   char message[BUFFER_SIZE];
   sprintf(message, "USER %s\r\n", username.c_str());
-  send(comm_socket, message, strlen(message), 0);
-  print_server_response(comm_socket);
+  send(control_socket_, message, strlen(message), 0);
+  print_server_response(control_socket_);
 }
 
-void password(int comm_socket) {
+void Client::password() {
   std::string passw;
   std::cout << "Введите пароль > ";
   std::cin >> passw;
   char message[BUFFER_SIZE];
   sprintf(message, "PASS %s\r\n", passw.c_str());
-  send(comm_socket, message, strlen(message), 0);
-  print_server_response(comm_socket);
+  send(control_socket_, message, strlen(message), 0);
+  print_server_response(control_socket_);
 }
 
-void quit(int comm_socket) {
-  send(comm_socket, "QUIT\r\n", strlen("QUIT\r\n"), 0);
-  print_server_response(comm_socket);
-}
-
-int passive_mode(int comm_socket) {
-  send(comm_socket, "PASV\r\n", strlen("PASV\r\n"), 0);
+void Client::passive_mode() {
+  send(control_socket_, "PASV\r\n", strlen("PASV\r\n"), 0);
   char buff[BUFFER_SIZE];
   memset(buff, 0, sizeof(buff));
-  recv(comm_socket, &buff, BUFFER_SIZE, 0);
+  recv(control_socket_, &buff, BUFFER_SIZE, 0);
   std::cout << buff;
 
   std::string ip_addr;
   int port = 0;
   parse_addr_port(buff, ip_addr, port);
 
-  int data_socket = socket(AF_INET, SOCK_STREAM, 0);
-  if (data_socket < 0) {
-    std::cerr << "Error creating socket!" << std::endl;
-    return -1;
+  data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
+  if (data_socket_ < 0) {
+    throw("Error creating socket!");
   }
 
-  connect_to_server(data_socket, ip_addr.c_str(), port);
-
-  return data_socket;
+  connect_to_server(data_socket_, ip_addr.c_str(), port);
+  pass_mode_ = true;
 }
 
-void list(int comm_socket, int data_socket) {
-  send(comm_socket, "LIST\r\n", strlen("LIST\r\n"), 0);
-  print_server_response(comm_socket);
-  print_server_response(data_socket);
-  print_server_response(comm_socket);
+void Client::list() {
+  send(control_socket_, "LIST\r\n", strlen("LIST\r\n"), 0);
+  if (pass_mode_ || active_mode_) {
+    print_server_response(control_socket_);
+    print_server_response(data_socket_);
+    print_server_response(control_socket_);
+  } else {
+    print_server_response(control_socket_);
+  }
 }
 
-void pwd(int comm_socket) {
-  send(comm_socket, "PWD\r\n", strlen("PWD\r\n"), 0);
-  print_server_response(comm_socket);
+void Client::pwd() {
+  send(control_socket_, "PWD\r\n", strlen("PWD\r\n"), 0);
+  print_server_response(control_socket_);
 }
 
-void help() {
+void Client::print_server_response(int _socket) {
+  char buff[BUFFER_SIZE];
+  memset(buff, 0, sizeof(buff));
+  recv(_socket, &buff, BUFFER_SIZE, 0);
+  std::cout << buff;
+}
+
+void Client::help() {
   std::cout << "\tPASV - войти в пассивный режим\n"
             << "\tLIST - просмотр содержимого каталога\n"
             << "\tPWD  - путь к текущему каталог\n"
@@ -123,6 +127,13 @@ void help() {
             // << "STOR - передать файл с клиента на сервер\n"
             << "\tQUIT - Выход и разрыв соединения\n"
             << "\tHELP - список доступных команд сервера\n";
+}
+
+void Client::quit() {
+  send(control_socket_, "QUIT\r\n", strlen("QUIT\r\n"), 0);
+  print_server_response(control_socket_);
+  close(control_socket_);
+  close(data_socket_);
 }
 
 } // namespace ftp
