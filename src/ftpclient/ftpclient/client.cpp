@@ -62,24 +62,25 @@ void Client::connect_to_server(int _socket, const char *server_ip, int port) {
   }
 }
 
+void Client::execute_command(const std::string &command) {
+  char message[BUFFER_SIZE];
+  sprintf(message, "%s\r\n", command.c_str());
+  send(control_socket_, message, strlen(message), 0);
+  print_server_response(control_socket_);
+}
+
 void Client::login() {
   std::string username;
   std::cout << "Введите имя пользователя > ";
   std::cin >> username;
-  char message[BUFFER_SIZE];
-  sprintf(message, "USER %s\r\n", username.c_str());
-  send(control_socket_, message, strlen(message), 0);
-  print_server_response(control_socket_);
+  execute_command("USER " + username);
 }
 
 void Client::password() {
   std::string passw;
   std::cout << "Введите пароль > ";
   std::cin >> passw;
-  char message[BUFFER_SIZE];
-  sprintf(message, "PASS %s\r\n", passw.c_str());
-  send(control_socket_, message, strlen(message), 0);
-  print_server_response(control_socket_);
+  execute_command("PASS " + passw);
 }
 
 void Client::passive_mode() {
@@ -103,20 +104,14 @@ void Client::passive_mode() {
 }
 
 void Client::list() {
-  send(control_socket_, "LIST\r\n", strlen("LIST\r\n"), 0);
+  execute_command("LIST");
   if (pass_mode_ || active_mode_) {
-    print_server_response(control_socket_);
     print_server_response(data_socket_);
-    print_server_response(control_socket_);
-  } else {
     print_server_response(control_socket_);
   }
 }
 
-void Client::pwd() {
-  send(control_socket_, "PWD\r\n", strlen("PWD\r\n"), 0);
-  print_server_response(control_socket_);
-}
+void Client::pwd() { execute_command("PWD"); }
 
 void Client::print_server_response(int _socket) {
   char buff[BUFFER_SIZE];
@@ -135,11 +130,6 @@ void Client::help() {
             << "\tHELP - список доступных команд сервера\n";
 }
 
-void Client::quit() {
-  send(control_socket_, "QUIT\r\n", strlen("QUIT\r\n"), 0);
-  print_server_response(control_socket_);
-  close(control_socket_);
-  close(data_socket_);
-}
+void Client::quit() { execute_command("QUIT"); }
 
 } // namespace ftp
