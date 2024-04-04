@@ -11,6 +11,7 @@ private:
 
 public:
   Client(const char *server_ip, int port);
+  ~Client();
   void connect_to_server(int _socket, const char *server_ip, int port);
 
   void login();

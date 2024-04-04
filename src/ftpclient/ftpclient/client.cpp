@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -34,10 +35,15 @@ namespace ftp {
 Client::Client(const char *server_ip, int port) {
   control_socket_ = socket(AF_INET, SOCK_STREAM, 0);
   if (control_socket_ < 0) {
-    throw("Error creating socket!");
+    throw std::runtime_error("Error creating socket!");
   }
   connect_to_server(control_socket_, server_ip, port);
   print_server_response(control_socket_);
+}
+
+Client::~Client() {
+  close(control_socket_);
+  close(data_socket_);
 }
 
 void Client::connect_to_server(int _socket, const char *server_ip, int port) {
@@ -49,7 +55,7 @@ void Client::connect_to_server(int _socket, const char *server_ip, int port) {
   if (connect(
           _socket, reinterpret_cast<sockaddr *>(&address), sizeof(address)) <
       0) {
-    throw("Error connecting to server!");
+    throw std::runtime_error("Error connecting to server!");
     close(_socket);
   } else {
     std::cout << "Connecting complete!\n";
@@ -89,7 +95,7 @@ void Client::passive_mode() {
 
   data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
   if (data_socket_ < 0) {
-    throw("Error creating socket!");
+    throw std::runtime_error("Error creating socket!");
   }
 
   connect_to_server(data_socket_, ip_addr.c_str(), port);
