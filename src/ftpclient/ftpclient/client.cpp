@@ -1,5 +1,6 @@
 #include <ftpclient/client.hpp>
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
@@ -113,11 +114,16 @@ void Client::list() {
 
 void Client::pwd() { execute_command("PWD"); }
 
-void Client::print_server_response(int _socket) {
+void Client::cwd() { execute_command("CWD pub"); }
+
+void Client::upload_file(std::string filename) { execute_command(filename); }
+
+std::string Client::print_server_response(int _socket) {
   char buff[BUFFER_SIZE];
   memset(buff, 0, sizeof(buff));
   recv(_socket, &buff, BUFFER_SIZE, 0);
   std::cout << buff;
+  return buff;
 }
 
 void Client::help() {

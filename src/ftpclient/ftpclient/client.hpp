@@ -24,10 +24,11 @@ public:
 
   void list();
   void pwd();
+  void cwd();
 
-  void stor(int comm_socket, int data_socket);
+  void upload_file(std::string filename);
 
-  void print_server_response(int _socket);
+  std::string print_server_response(int _socket);
   void help();
   void quit();
 };

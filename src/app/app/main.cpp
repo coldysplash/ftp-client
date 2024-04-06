@@ -20,14 +20,17 @@ int main(int argc, char *argv[]) {
     while (1) {
       std::string command;
       std::cout << "> ";
-      std::cin >> command;
+      std::getline(std::cin, command);
 
       if (command == "PASV") {
         client.passive_mode();
+        client.cwd();
       } else if (command == "LIST") {
         client.list();
       } else if (command == "PWD") {
         client.pwd();
+      } else if (command.substr(0, 4) == "STOR") {
+        client.upload_file(command);
       } else if (command == "HELP") {
         client.help();
       } else if (command == "QUIT") {
