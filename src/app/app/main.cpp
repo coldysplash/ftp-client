@@ -24,11 +24,12 @@ int main(int argc, char *argv[]) {
 
       if (command == "PASV") {
         client.passive_mode();
-        client.cwd();
       } else if (command == "LIST") {
         client.list();
       } else if (command == "PWD") {
         client.pwd();
+      } else if (command.substr(0, 3) == "CWD") {
+        client.change_dir(command);
       } else if (command.substr(0, 4) == "STOR") {
         client.upload_file(command);
       } else if (command == "HELP") {

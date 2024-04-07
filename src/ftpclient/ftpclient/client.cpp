@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -28,6 +29,12 @@ void parse_addr_port(const char *pars_str, std::string &ip, int &port) {
   }
   ip += tokens[0] + '.' + tokens[1] + '.' + tokens[2] + '.' + tokens[3];
   port = std::stoi(tokens[4]) * 256 + std::stoi(tokens[5]);
+}
+void parse_file_path(std::string &file_path) {
+  size_t pos = file_path.find_last_of('/');
+  if (pos != std::string::npos) {
+    file_path = file_path.substr(pos + 1);
+  }
 }
 } // namespace
 
@@ -63,11 +70,11 @@ void Client::connect_to_server(int _socket, const char *server_ip, int port) {
   }
 }
 
-void Client::execute_command(const std::string &command) {
+std::string Client::execute_command(const std::string &command) {
   char message[BUFFER_SIZE];
   sprintf(message, "%s\r\n", command.c_str());
   send(control_socket_, message, strlen(message), 0);
-  print_server_response(control_socket_);
+  return print_server_response(control_socket_);
 }
 
 void Client::login() {
@@ -85,38 +92,73 @@ void Client::password() {
 }
 
 void Client::passive_mode() {
-  send(control_socket_, "PASV\r\n", strlen("PASV\r\n"), 0);
-  char buff[BUFFER_SIZE];
-  memset(buff, 0, sizeof(buff));
-  recv(control_socket_, &buff, BUFFER_SIZE, 0);
-  std::cout << buff;
+  if (!pass_mode_) {
+    send(control_socket_, "PASV\r\n", strlen("PASV\r\n"), 0);
+    char buff[BUFFER_SIZE];
+    memset(buff, 0, sizeof(buff));
+    recv(control_socket_, &buff, BUFFER_SIZE, 0);
+    std::cout << buff;
 
-  std::string ip_addr;
-  int port = 0;
-  parse_addr_port(buff, ip_addr, port);
+    std::string ip_addr;
+    int port = 0;
+    parse_addr_port(buff, ip_addr, port);
 
-  data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
-  if (data_socket_ < 0) {
-    throw std::runtime_error("Error creating socket!");
+    data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
+    if (data_socket_ < 0) {
+      throw std::runtime_error("Error creating socket!");
+    }
+
+    connect_to_server(data_socket_, ip_addr.c_str(), port);
+    pass_mode_ = true;
   }
-
-  connect_to_server(data_socket_, ip_addr.c_str(), port);
-  pass_mode_ = true;
 }
 
 void Client::list() {
   execute_command("LIST");
-  if (pass_mode_ || active_mode_) {
+  if (pass_mode_) {
     print_server_response(data_socket_);
     print_server_response(control_socket_);
+    close(data_socket_);
+    pass_mode_ = false;
   }
 }
 
 void Client::pwd() { execute_command("PWD"); }
 
-void Client::cwd() { execute_command("CWD pub"); }
+void Client::change_dir(const std::string &command) {
+  execute_command(command);
+}
 
-void Client::upload_file(std::string filename) { execute_command(filename); }
+int Client::upload_file(const std::string &command) {
+  std::string file_path;
+  size_t it = command.find_first_of(' ');
+  if (it != std::string::npos) {
+    file_path = command.substr(it + 1);
+  }
+  FILE *file = fopen(file_path.c_str(), "r");
+  if (!file) {
+    std::cerr << "Error open file!\n";
+    return -1;
+  }
+  parse_file_path(file_path);
+  std::string reply = execute_command("STOR " + file_path);
+  if (reply.substr(0, 3) == "150") {
+    int count;
+    char databuf[BUFFER_SIZE];
+    while (!feof(file)) {
+      count = fread(databuf, 1, BUFFER_SIZE, file);
+      send(data_socket_, databuf, count, 0);
+    }
+    send(data_socket_, "\r\n", strlen("\r\n"), 0);
+    fclose(file);
+    close(data_socket_);
+    pass_mode_ = false;
+    print_server_response(control_socket_);
+  } else {
+    return -1;
+  }
+  return 0;
+}
 
 std::string Client::print_server_response(int _socket) {
   char buff[BUFFER_SIZE];
@@ -130,8 +172,9 @@ void Client::help() {
   std::cout << "\tPASV - войти в пассивный режим\n"
             << "\tLIST - просмотр содержимого каталога\n"
             << "\tPWD  - путь к текущему каталог\n"
-            // << "RETR - передать файл с сервера на клиент\n"
-            // << "STOR - передать файл с клиента на сервер\n"
+            << "\tCWD <path> - переход в другую директорию"
+            // << "RETR - скачать файл с сервера на клиент\n"
+            << "\tSTOR <path> - передать файл с клиента на сервер\n"
             << "\tQUIT - Выход и разрыв соединения\n"
             << "\tHELP - список доступных команд сервера\n";
 }
