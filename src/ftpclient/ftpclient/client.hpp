@@ -27,6 +27,7 @@ public:
   void change_dir(const std::string &command);
 
   int upload_file(const std::string &command);
+  int download_file(const std::string &command);
 
   std::string print_server_response(int _socket);
   void help();

@@ -32,6 +32,8 @@ int main(int argc, char *argv[]) {
         client.change_dir(command);
       } else if (command.substr(0, 4) == "STOR") {
         client.upload_file(command);
+      } else if (command.substr(0, 4) == "RETR") {
+        client.download_file(command);
       } else if (command == "HELP") {
         client.help();
       } else if (command == "QUIT") {

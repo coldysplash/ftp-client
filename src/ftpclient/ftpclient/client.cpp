@@ -30,6 +30,15 @@ void parse_addr_port(const char *pars_str, std::string &ip, int &port) {
   ip += tokens[0] + '.' + tokens[1] + '.' + tokens[2] + '.' + tokens[3];
   port = std::stoi(tokens[4]) * 256 + std::stoi(tokens[5]);
 }
+
+int parse_file_size(std::string pars_str) {
+  size_t start = pars_str.find('(') + 1;
+  size_t end = pars_str.find(')');
+  pars_str = pars_str.substr(start, end - start);
+
+  return std::stoi(pars_str.substr(0, pars_str.find(' ')));
+}
+
 void parse_file_path(std::string &file_path) {
   size_t pos = file_path.find_last_of('/');
   if (pos != std::string::npos) {
@@ -135,7 +144,7 @@ int Client::upload_file(const std::string &command) {
   if (it != std::string::npos) {
     file_path = command.substr(it + 1);
   }
-  FILE *file = fopen(file_path.c_str(), "r");
+  FILE *file = fopen(file_path.c_str(), "rb");
   if (!file) {
     std::cerr << "Error open file!\n";
     return -1;
@@ -160,6 +169,34 @@ int Client::upload_file(const std::string &command) {
   return 0;
 }
 
+int Client::download_file(const std::string &command) {
+  std::string file_path;
+  size_t it = command.find_first_of(' ');
+  if (it != std::string::npos) {
+    file_path = command.substr(it + 1);
+  }
+  std::string reply = execute_command("RETR " + file_path);
+  if (reply.substr(0, 3) == "150") {
+    int file_size = parse_file_size(reply);
+    FILE *file = fopen(file_path.c_str(), "wb");
+    int read = 0;
+    while (read < file_size) {
+      char databuff[BUFFER_SIZE];
+      int readed = recv(data_socket_, databuff, sizeof(databuff), 0);
+      fwrite(databuff, 1, readed, file);
+      read += readed;
+    }
+    fclose(file);
+    close(data_socket_);
+    pass_mode_ = false;
+    print_server_response(control_socket_);
+  } else {
+    return -1;
+  }
+
+  return 0;
+}
+
 std::string Client::print_server_response(int _socket) {
   char buff[BUFFER_SIZE];
   memset(buff, 0, sizeof(buff));
@@ -172,9 +209,9 @@ void Client::help() {
   std::cout << "\tPASV - войти в пассивный режим\n"
             << "\tLIST - просмотр содержимого каталога\n"
             << "\tPWD  - путь к текущему каталог\n"
-            << "\tCWD <path> - переход в другую директорию"
-            // << "RETR - скачать файл с сервера на клиент\n"
-            << "\tSTOR <path> - передать файл с клиента на сервер\n"
+            << "\tCWD <path> - переход в другую директорию\n"
+            << "\tRETR <file path> - скачать файл с сервера на клиент\n"
+            << "\tSTOR <file path> - передать файл с клиента на сервер\n"
             << "\tQUIT - Выход и разрыв соединения\n"
             << "\tHELP - список доступных команд сервера\n";
 }
