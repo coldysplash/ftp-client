@@ -15,8 +15,7 @@
 #define BUFFER_SIZE 1024
 
 namespace {
-void parse_addr_port(const char *pars_str, std::string &ip, int &port) {
-  std::string response = pars_str;
+void parse_addr_port(std::string &response, std::string &ip, int &port) {
   size_t start = response.find('(') + 1;
   size_t end = response.find(')');
   response = response.substr(start, end - start);
@@ -44,6 +43,18 @@ void parse_file_path(std::string &file_path) {
   if (pos != std::string::npos) {
     file_path = file_path.substr(pos + 1);
   }
+}
+
+std::string parse_connect_addr(std::string addr, int port) {
+  for (auto &ch : addr) {
+    if (ch == '.') {
+      ch = ',';
+    }
+  }
+  int p1 = port / 256;
+  int p2 = port % 256;
+
+  return addr + "," + std::to_string(p1) + "," + std::to_string(p2);
 }
 } // namespace
 
@@ -100,17 +111,46 @@ void Client::password() {
   execute_command("PASS " + passw);
 }
 
-void Client::passive_mode() {
-  if (!pass_mode_) {
-    send(control_socket_, "PASV\r\n", strlen("PASV\r\n"), 0);
-    char buff[BUFFER_SIZE];
-    memset(buff, 0, sizeof(buff));
-    recv(control_socket_, &buff, BUFFER_SIZE, 0);
-    std::cout << buff;
+void Client::active_mode() {
+  if (!active_mode_ && !pass_mode_) {
+    data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
+    if (data_socket_ < 0) {
+      throw std::runtime_error("Error creating socket!");
+    }
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = inet_addr("127.0.0.1");
+    address.sin_port = 0;
 
+    if (bind(
+            data_socket_,
+            reinterpret_cast<sockaddr *>(&address),
+            sizeof(address)) == -1) {
+      throw std::runtime_error("Error binding socket");
+    }
+    socklen_t length = sizeof(address);
+    getsockname(data_socket_, reinterpret_cast<sockaddr *>(&address), &length);
+
+    if (listen(data_socket_, 1) == -1) {
+      throw std::runtime_error("Error listening on socket");
+    }
+
+    std::string connect_addr = parse_connect_addr(
+        inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+
+    std::string reply = execute_command("PORT " + connect_addr);
+    if (reply.substr(0, 3) == "200") {
+      active_mode_ = true;
+    }
+  }
+}
+
+void Client::passive_mode() {
+  if (!pass_mode_ && !active_mode_) {
+    std::string reply = execute_command("PASV");
     std::string ip_addr;
     int port = 0;
-    parse_addr_port(buff, ip_addr, port);
+    parse_addr_port(reply, ip_addr, port);
 
     data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
     if (data_socket_ < 0) {
@@ -124,11 +164,12 @@ void Client::passive_mode() {
 
 void Client::list() {
   execute_command("LIST");
-  if (pass_mode_) {
+  if (pass_mode_ || active_mode_) {
     print_server_response(data_socket_);
     print_server_response(control_socket_);
     close(data_socket_);
     pass_mode_ = false;
+    active_mode_ = false;
   }
 }
 
@@ -162,6 +203,7 @@ int Client::upload_file(const std::string &command) {
     fclose(file);
     close(data_socket_);
     pass_mode_ = false;
+    active_mode_ = false;
     print_server_response(control_socket_);
   } else {
     return -1;
@@ -189,6 +231,7 @@ int Client::download_file(const std::string &command) {
     fclose(file);
     close(data_socket_);
     pass_mode_ = false;
+    active_mode_ = false;
     print_server_response(control_socket_);
   } else {
     return -1;

@@ -21,6 +21,7 @@ public:
   void password();
 
   void passive_mode();
+  void active_mode();
 
   void list();
   void pwd();
