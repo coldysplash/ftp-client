@@ -97,11 +97,22 @@ std::string Client::execute_command(const std::string &command) {
   return print_server_response(control_socket_);
 }
 
-void Client::login() {
+std::string Client::print_server_response(int _socket) {
+  char buff[BUFFER_SIZE];
+  memset(buff, 0, sizeof(buff));
+  recv(_socket, &buff, BUFFER_SIZE, 0);
+  std::cout << buff;
+  return buff;
+}
+
+int Client::login() {
   std::string username;
   std::cout << "Введите имя пользователя > ";
   std::cin >> username;
-  execute_command("USER " + username);
+  if (execute_command("USER " + username).substr(0, 3) == "530") {
+    return -1;
+  };
+  return 0;
 }
 
 void Client::password() {
@@ -131,7 +142,7 @@ void Client::active_mode() {
     socklen_t length = sizeof(address);
     getsockname(data_socket_, reinterpret_cast<sockaddr *>(&address), &length);
 
-    if (listen(data_socket_, 1) == -1) {
+    if (listen(data_socket_, 2) == -1) {
       throw std::runtime_error("Error listening on socket");
     }
 
@@ -139,6 +150,12 @@ void Client::active_mode() {
         inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 
     std::string reply = execute_command("PORT " + connect_addr);
+
+    // int new_socket = accept(data_socket_, nullptr, nullptr);
+
+    // if (new_socket == -1) {
+    // throw std::runtime_error("Error accepting connection!");
+    // }
     if (reply.substr(0, 3) == "200") {
       active_mode_ = true;
     }
@@ -148,17 +165,19 @@ void Client::active_mode() {
 void Client::passive_mode() {
   if (!pass_mode_ && !active_mode_) {
     std::string reply = execute_command("PASV");
-    std::string ip_addr;
-    int port = 0;
-    parse_addr_port(reply, ip_addr, port);
+    if (reply.substr(0, 3) != "530") {
+      std::string ip_addr;
+      int port = 0;
+      parse_addr_port(reply, ip_addr, port);
 
-    data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
-    if (data_socket_ < 0) {
-      throw std::runtime_error("Error creating socket!");
+      data_socket_ = socket(AF_INET, SOCK_STREAM, 0);
+      if (data_socket_ < 0) {
+        throw std::runtime_error("Error creating socket!");
+      }
+
+      connect_to_server(data_socket_, ip_addr.c_str(), port);
+      pass_mode_ = true;
     }
-
-    connect_to_server(data_socket_, ip_addr.c_str(), port);
-    pass_mode_ = true;
   }
 }
 
@@ -238,14 +257,6 @@ int Client::download_file(const std::string &command) {
   }
 
   return 0;
-}
-
-std::string Client::print_server_response(int _socket) {
-  char buff[BUFFER_SIZE];
-  memset(buff, 0, sizeof(buff));
-  recv(_socket, &buff, BUFFER_SIZE, 0);
-  std::cout << buff;
-  return buff;
 }
 
 void Client::help() {

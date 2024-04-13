@@ -14,15 +14,20 @@ int main(int argc, char *argv[]) {
 
     ftp::Client client(server_ip, server_port);
 
-    client.login();
-    client.password();
+    if (client.login() == 0) {
+      client.password();
+    }
 
     while (1) {
       std::string command;
       std::cout << "> ";
       std::getline(std::cin, command);
 
-      if (command == "PASV") {
+      if (command == "USER") {
+        if (client.login() == 0) {
+          client.password();
+        }
+      } else if (command == "PASV") {
         client.passive_mode();
       } else if (command == "PORT") {
         client.active_mode();
