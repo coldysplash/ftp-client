@@ -7,7 +7,6 @@ namespace ftp {
 class Client {
 private:
   bool pass_mode_ = false;
-  bool active_mode_ = false;
   int control_socket_;
   int data_socket_;
 

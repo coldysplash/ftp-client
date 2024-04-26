@@ -29,8 +29,6 @@ int main(int argc, char *argv[]) {
         }
       } else if (command == "PASV") {
         client.passive_mode();
-      } else if (command == "PORT") {
-        client.active_mode();
       } else if (command == "LIST") {
         client.list();
       } else if (command == "PWD") {
