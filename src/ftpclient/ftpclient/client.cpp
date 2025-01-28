@@ -62,7 +62,8 @@ Client::~Client() {
   close(data_socket_);
 }
 
-void Client::connect_to_server(int _socket, const char *server_ip, int port) {
+void Client::connect_to_server(
+    int _socket, const char *server_ip, int port) const {
   sockaddr_in address{};
   address.sin_family = AF_INET;
   address.sin_addr.s_addr = inet_addr(server_ip);
@@ -78,14 +79,14 @@ void Client::connect_to_server(int _socket, const char *server_ip, int port) {
   }
 }
 
-std::string Client::execute_command(const std::string &command) {
+std::string Client::execute_command(const std::string &command) const {
   char message[BUFFER_SIZE];
   sprintf(message, "%s\r\n", command.c_str());
   send(control_socket_, message, strlen(message), 0);
   return print_server_response(control_socket_);
 }
 
-std::string Client::print_server_response(int _socket) {
+std::string Client::print_server_response(int _socket) const {
   char buff[BUFFER_SIZE];
   memset(buff, 0, sizeof(buff));
   recv(_socket, &buff, BUFFER_SIZE, 0);
@@ -93,9 +94,9 @@ std::string Client::print_server_response(int _socket) {
   return buff;
 }
 
-int Client::login() {
+int Client::login() const {
   std::string username;
-  std::cout << "Введите имя пользователя > ";
+  std::cout << "Enter Username > ";
   std::cin >> username;
   if (execute_command("USER " + username).substr(0, 3) == "530") {
     return -1;
@@ -103,9 +104,9 @@ int Client::login() {
   return 0;
 }
 
-void Client::password() {
+void Client::password() const {
   std::string passw;
-  std::cout << "Введите пароль > ";
+  std::cout << "Enter Password > ";
   std::cin >> passw;
   execute_command("PASS " + passw);
 }
@@ -139,9 +140,9 @@ void Client::list() {
   }
 }
 
-void Client::pwd() { execute_command("PWD"); }
+void Client::pwd() const { execute_command("PWD"); }
 
-void Client::change_dir(const std::string &command) {
+void Client::change_dir(const std::string &command) const {
   execute_command(command);
 }
 
@@ -204,17 +205,18 @@ int Client::download_file(const std::string &command) {
   return 0;
 }
 
-void Client::help() {
-  std::cout << "\tPASV - войти в пассивный режим\n"
-            << "\tLIST - просмотр содержимого каталога\n"
-            << "\tPWD  - путь к текущему каталог\n"
-            << "\tCWD <path> - переход в другую директорию\n"
-            << "\tRETR <file path> - скачать файл с сервера на клиент\n"
-            << "\tSTOR <file path> - передать файл с клиента на сервер\n"
-            << "\tQUIT - Выход и разрыв соединения\n"
-            << "\tHELP - список доступных команд сервера\n";
+void Client::help() const {
+  std::cout
+      << "\tPASV - enter passive mode\n"
+      << "\tLIST - view directory contents\n"
+      << "\tPWD  - path to the current directory\n"
+      << "\tCWD <path> - change to another directory\n"
+      << "\tRETR <file path> - download a file from the server to the client\n"
+      << "\tSTOR <file path> - upload a file from the client to the server\n"
+      << "\tQUIT - Exit and disconnect\n"
+      << "\tHELP - list of available server commands\n";
 }
 
-void Client::quit() { execute_command("QUIT"); }
+void Client::quit() const { execute_command("QUIT"); }
 
 } // namespace ftp
