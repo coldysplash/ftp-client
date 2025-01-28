@@ -20,4 +20,5 @@ My application implements only passive mode for data transfer between client and
 
 ## Example of usage:
 
-![Снимок экрана от 2024-04-28 15-53-07](https://github.com/coldysplash/ftp-client/assets/99001708/4197d1a8-2639-4e4c-932c-06e099303c22)
+![изображение](https://github.com/user-attachments/assets/d75efd3f-0a4c-451c-9281-cd4410cab042)
+
